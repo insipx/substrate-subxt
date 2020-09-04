@@ -208,11 +208,12 @@ impl<T: Runtime> Rpc<T> {
         Ok(metadata)
     }
 
-    pub async fn raw_metadata(&self) -> Result<Vec<u8>, Error> {
-        let bytes: Bytes = self
+    pub async fn raw_metadata(&self) -> Result<Bytes, Error> {
+        self
             .client
             .request("state_getMetadata", Params::None)
-            .await?;
+            .await
+            .map_err(Into::into)
     }
 
     /// Get a header

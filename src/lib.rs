@@ -257,9 +257,10 @@ impl<T: Runtime> Client<T> {
     pub fn metadata(&self) -> &Metadata {
         &self.metadata
     }
-
-    pub fn raw_metadata(&self) -> Result<Vec<u8>, Error> {
-        self.rpc.raw_metadata()
+    
+    /// Get raw metadata bytes
+    pub async fn raw_metadata(&self) -> Result<Bytes, Error> {
+        self.rpc.raw_metadata().await
     }
 
     /// Fetch the value under an unhashed storage key
