@@ -262,6 +262,11 @@ impl<T: Runtime> Client<T> {
     pub async fn raw_metadata(&self, hash: Option<T::Hash>) -> Result<Bytes, Error> {
         self.rpc.raw_metadata(hash).await
     }
+    
+    /// get the runtime version at a hash
+    pub async fn runtime_version(&self, at: Option<T::Hash>) -> Result<RuntimeVersion, Error> {
+        self.rpc.runtime_version(at).await
+    }
 
     /// Fetch the value under an unhashed storage key
     pub async fn fetch_unhashed<V: Decode>(
