@@ -208,10 +208,11 @@ impl<T: Runtime> Rpc<T> {
         Ok(metadata)
     }
 
-    pub async fn raw_metadata(&self) -> Result<Bytes, Error> {
+    pub async fn raw_metadata(&self, hash: Option<T::Hash>) -> Result<Bytes, Error> {
+        let params = Params::Array(vec![to_json_value(hash)?]);
         self
             .client
-            .request("state_getMetadata", Params::None)
+            .request("state_getMetadata", params)
             .await
             .map_err(Into::into)
     }

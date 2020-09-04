@@ -259,8 +259,8 @@ impl<T: Runtime> Client<T> {
     }
     
     /// Get raw metadata bytes
-    pub async fn raw_metadata(&self) -> Result<Bytes, Error> {
-        self.rpc.raw_metadata().await
+    pub async fn raw_metadata(&self, hash: Option<T::Hash>) -> Result<Bytes, Error> {
+        self.rpc.raw_metadata(hash).await
     }
 
     /// Fetch the value under an unhashed storage key
