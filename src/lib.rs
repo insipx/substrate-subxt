@@ -258,6 +258,10 @@ impl<T: Runtime> Client<T> {
         &self.metadata
     }
 
+    pub fn raw_metadata(&self) -> Result<Vec<u8>, Error> {
+        self.rpc.raw_metadata()
+    }
+
     /// Fetch the value under an unhashed storage key
     pub async fn fetch_unhashed<V: Decode>(
         &self,
