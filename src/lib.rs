@@ -161,8 +161,8 @@ impl<T: Runtime> ClientBuilder<T> {
             }
         };
         let rpc = Rpc::new(client);
-        let (metadata, genesis_hash, runtime_version) = future::join3(
-            rpc.metadata(),
+        let (genesis_hash, runtime_version) = future::join(
+            // rpc.metadata(),
             rpc.genesis_hash(),
             rpc.runtime_version(None),
         )
@@ -170,7 +170,7 @@ impl<T: Runtime> ClientBuilder<T> {
         Ok(Client {
             rpc,
             genesis_hash: genesis_hash?,
-            metadata: metadata?,
+            // metadata: metadata?,
             runtime_version: runtime_version?,
             _marker: PhantomData,
             page_size: self.page_size.unwrap_or(10),
@@ -182,7 +182,7 @@ impl<T: Runtime> ClientBuilder<T> {
 pub struct Client<T: Runtime> {
     rpc: Rpc<T>,
     genesis_hash: T::Hash,
-    metadata: Metadata,
+    // metadata: Metadata,
     runtime_version: RuntimeVersion,
     _marker: PhantomData<(fn() -> T::Signature, T::Extra)>,
     page_size: u32,
@@ -193,7 +193,7 @@ impl<T: Runtime> Clone for Client<T> {
         Self {
             rpc: self.rpc.clone(),
             genesis_hash: self.genesis_hash,
-            metadata: self.metadata.clone(),
+            // metadata: self.metadata.clone(),
             runtime_version: self.runtime_version.clone(),
             _marker: PhantomData,
             page_size: self.page_size,
@@ -254,15 +254,15 @@ impl<T: Runtime> Client<T> {
     }
 
     /// Returns the chain metadata.
-    pub fn metadata(&self) -> &Metadata {
-        &self.metadata
+    pub async fn metadata(&self) -> Result<Metadata, Error> {
+        self.rpc.metadata().await
     }
-    
+
     /// Get raw metadata bytes
     pub async fn raw_metadata(&self, hash: Option<T::Hash>) -> Result<Bytes, Error> {
         self.rpc.raw_metadata(hash).await
     }
-    
+
     /// get the runtime version at a hash
     pub async fn runtime_version(&self, at: Option<T::Hash>) -> Result<RuntimeVersion, Error> {
         self.rpc.runtime_version(at).await
@@ -287,7 +287,7 @@ impl<T: Runtime> Client<T> {
         store: &F,
         hash: Option<T::Hash>,
     ) -> Result<Option<F::Returns>, Error> {
-        let key = store.key(&self.metadata)?;
+        let key = store.key(&self.metadata().await?)?;
         self.fetch_unhashed::<F::Returns>(key, hash).await
     }
 
@@ -300,7 +300,7 @@ impl<T: Runtime> Client<T> {
         if let Some(data) = self.fetch(store, hash).await? {
             Ok(data)
         } else {
-            Ok(store.default(&self.metadata)?)
+            Ok(store.default(&self.metadata().await?)?)
         }
     }
 
@@ -335,7 +335,7 @@ impl<T: Runtime> Client<T> {
         start_key: Option<StorageKey>,
         hash: Option<T::Hash>,
     ) -> Result<Vec<StorageKey>, Error> {
-        let prefix = <F as Store<T>>::prefix(&self.metadata)?;
+        let prefix = <F as Store<T>>::prefix(&self.metadata().await?)?;
         let keys = self
             .rpc
             .storage_keys_paged(Some(prefix), count, start_key, hash)
@@ -423,8 +423,9 @@ impl<T: Runtime> Client<T> {
 
     /// Encodes a call.
     pub fn encode<C: Call<T>>(&self, call: C) -> Result<Encoded, Error> {
-        Ok(self
-            .metadata()
+        Ok(async_std::task::block_on(self
+            .metadata())
+           .unwrap()
             .module_with_calls(C::MODULE)
             .and_then(|module| module.call(C::FUNCTION, call))?)
     }
@@ -432,8 +433,7 @@ impl<T: Runtime> Client<T> {
     /// Creates an unsigned extrinsic.
     pub fn create_unsigned<C: Call<T> + Send + Sync>(
         &self,
-        call: C,
-    ) -> Result<UncheckedExtrinsic<T>, Error> {
+        call: C,) -> Result<UncheckedExtrinsic<T>, Error> {
         let call = self.encode(call)?;
         Ok(extrinsic::create_unsigned::<T>(call))
     }
@@ -467,7 +467,7 @@ impl<T: Runtime> Client<T> {
 
     /// Returns an events decoder for a call.
     pub fn events_decoder<C: Call<T>>(&self) -> EventsDecoder<T> {
-        let metadata = self.metadata().clone();
+        let metadata = async_std::task::block_on(self.metadata()).unwrap().clone();
         let mut decoder = EventsDecoder::new(metadata);
         C::events_decoder(&mut decoder);
         decoder
